@@ -2,20 +2,80 @@
 
 local player = game.Players.LocalPlayer
 local camera = game.Workspace.CurrentCamera
-local targetPlayer = game.Players:WaitForChild("TargetPlayerName") -- Replace with the player's name you want to lock on to
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player.PlayerGui
 
--- Make sure the player exists in the game
-if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
-    local targetHead = targetPlayer.Character.Head
+-- Create a frame for the menu
+local menuFrame = Instance.new("Frame")
+menuFrame.Size = UDim2.new(0, 200, 0, 400)
+menuFrame.Position = UDim2.new(0.5, -100, 0.5, -200)
+menuFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+menuFrame.Parent = screenGui
 
-    -- Function to update the camera position
-    local function lockCamera()
-        -- Set the camera to follow the target's head
-        camera.CFrame = CFrame.new(camera.CFrame.Position, targetHead.Position)
+-- Create a title for the menu
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 50)
+title.Text = "Select Player to Lock On"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 20
+title.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+title.Parent = menuFrame
+
+-- Create a UIListLayout for dynamic button positioning
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 10)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = menuFrame
+
+-- Function to update the menu with a list of players
+local function updateMenu()
+    -- Clear previous buttons
+    for _, child in ipairs(menuFrame:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
     end
 
-    -- Run the function every frame to keep updating
-    game:GetService("RunService").RenderStepped:Connect(lockCamera)
-else
-    warn("Target player or their head not found!")
+    -- Create a button for each player in the game
+    for _, otherPlayer in ipairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player then  -- Exclude the local player from the list
+            local playerButton = Instance.new("TextButton")
+            playerButton.Size = UDim2.new(1, 0, 0, 50)
+            playerButton.Text = otherPlayer.Name
+            playerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            playerButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            playerButton.TextSize = 18
+            playerButton.Parent = menuFrame
+
+            -- Set the button functionality
+            playerButton.MouseButton1Click:Connect(function()
+                -- Lock camera to selected player's head
+                if otherPlayer.Character and otherPlayer.Character:FindFirstChild("Head") then
+                    local targetHead = otherPlayer.Character.Head
+                    local function lockCamera()
+                        camera.CFrame = CFrame.new(camera.CFrame.Position, targetHead.Position)
+                    end
+                    -- Start the camera lock
+                    game:GetService("RunService").RenderStepped:Connect(lockCamera)
+                end
+            end)
+        end
+    end
 end
+
+-- Update the menu when the script starts
+updateMenu()
+
+-- Optionally, you can add a button to close the menu
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 200, 0, 50)
+closeButton.Position = UDim2.new(0.5, -100, 1, -50)
+closeButton.Text = "Close Menu"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+closeButton.TextSize = 18
+closeButton.Parent = screenGui
+
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy() -- Close the menu by destroying the GUI
+end)
