@@ -773,7 +773,7 @@ end
 
 local Window = Fluent:CreateWindow({
     Title = "CheatHub Script",
-    SubTitle = "by mxly",
+    SubTitle = "by mxly and nxgi",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
