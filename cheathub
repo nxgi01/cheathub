@@ -785,6 +785,7 @@ local Tabs = {
     ESP = Window:AddTab({ Title = "ESP", Icon = "eye" }),
     Settings = Window:AddTab({ Title = "Settings", Icon = "settings" }),
     Config = Window:AddTab({ Title = "Config", Icon = "save" })
+    Aimbot = Window:AddTab({ Title = "Aimbot", Icon = "save"})
 }
 
 do
