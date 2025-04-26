@@ -1,118 +1,21 @@
--- LocalScript in StarterPlayerScripts
+-- Place this in a LocalScript within StarterPlayer > StarterPlayerScripts
 
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UIS = game:GetService("UserInputService")
-local player = Players.LocalPlayer
-local mouse = player:GetMouse()
+local player = game.Players.LocalPlayer
+local camera = game.Workspace.CurrentCamera
+local targetPlayer = game.Players:WaitForChild("TargetPlayerName") -- Replace with the player's name you want to lock on to
 
--- Create GUI
-local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-screenGui.Name = "AutoAimGui"
+-- Make sure the player exists in the game
+if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+    local targetHead = targetPlayer.Character.Head
 
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 160, 0, 40)
-button.Position = UDim2.new(0, 10, 0, 10)
-button.Text = "Auto-Aim: OFF"
-button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.Parent = screenGui
+    -- Function to update the camera position
+    local function lockCamera()
+        -- Set the camera to follow the target's head
+        camera.CFrame = CFrame.new(camera.CFrame.Position, targetHead.Position)
+    end
 
--- Auto-Aim flag
-local autoAimFlag = Instance.new("BoolValue")
-autoAimFlag.Name = "AutoAimEnabled"
-autoAimFlag.Value = false
-autoAimFlag.Parent = player
-
--- Toggle Button
-button.MouseButton1Click:Connect(function()
-	autoAimFlag.Value = not autoAimFlag.Value
-	button.Text = autoAimFlag.Value and "Auto-Aim: ON" or "Auto-Aim: OFF"
-end)
-
--- Shooting
-mouse.Button1Down:Connect(function()
-	local character = player.Character
-	if not character then return end
-	local root = character:FindFirstChild("HumanoidRootPart")
-	if not root then return end
-
-	-- Fire the Remote to launch a projectile
-	ReplicatedStorage:WaitForChild("LaunchProjectile"):FireServer(
-		root.Position,
-		mouse.Hit.Position
-	)
-end)
-
--------------------------------------------------------
--- Server Script: Place in ServerScriptService
--------------------------------------------------------
-
--- Make sure this is in ServerScriptService
--- And you have a RemoteEvent in ReplicatedStorage named LaunchProjectile
-
-local Players = game:GetService("Players")
-local Debris = game:GetService("Debris")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local projectileSpeed = 100
-local maxRange = 150
-
--- Find closest enemy to player
-local function findClosestEnemy(player, origin)
-	local closest, closestDist = nil, maxRange
-	for _, other in pairs(Players:GetPlayers()) do
-		if other ~= player and other.Character and other.Character:FindFirstChild("HumanoidRootPart") then
-			local dist = (other.Character.HumanoidRootPart.Position - origin).Magnitude
-			if dist < closestDist then
-				closest = other.Character
-				closestDist = dist
-			end
-		end
-	end
-	return closest
+    -- Run the function every frame to keep updating
+    game:GetService("RunService").RenderStepped:Connect(lockCamera)
+else
+    warn("Target player or their head not found!")
 end
-
--- Predict future position of target
-local function predictTargetPosition(target, origin)
-	local hrp = target:FindFirstChild("HumanoidRootPart")
-	if not hrp then return nil end
-	local targetPos = hrp.Position
-	local velocity = hrp.Velocity
-	local distance = (targetPos - origin).Magnitude
-	local time = distance / projectileSpeed
-	return targetPos + velocity * time
-end
-
-ReplicatedStorage:WaitForChild("LaunchProjectile").OnServerEvent:Connect(function(player, origin, firePoint)
-	local autoAim = player:FindFirstChild("AutoAimEnabled") and player.AutoAimEnabled.Value
-	local direction
-
-	if autoAim then
-		local target = findClosestEnemy(player, origin)
-		if target then
-			local predicted = predictTargetPosition(target, origin)
-			if predicted then
-				direction = (predicted - origin).Unit
-			end
-		end
-	end
-
-	-- Default fallback
-	if not direction then
-		direction = (firePoint - origin).Unit
-	end
-
-	-- Create the projectile
-	local proj = Instance.new("Part")
-	proj.Shape = Enum.PartType.Ball
-	proj.Size = Vector3.new(0.5, 0.5, 0.5)
-	proj.Color = Color3.new(1, 0, 0)
-	proj.Anchored = false
-	proj.CanCollide = false
-	proj.Position = origin
-	proj.Velocity = direction * projectileSpeed
-	proj.Parent = workspace
-
-	Debris:AddItem(proj, 5)
-end)
