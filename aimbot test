@@ -1,219 +1,299 @@
---// Preventing Multiple Processes
-pcall(function()
-    getgenv().Aimbot.Functions:Exit()
-end)
 
---// Environment
-getgenv().Aimbot = {}
-local Environment = getgenv().Aimbot
+--// Cache
 
---// Services
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local HttpService = game:GetService("HttpService")
-local TweenService = game:GetService("TweenService")
-local StarterGui = game:GetService("StarterGui")
-local Players = game:GetService("Players")
-local Camera = game:GetService("Workspace").CurrentCamera
+local loadstring, game, getgenv, setclipboard = loadstring, game, getgenv, setclipboard
+
+--// Loaded check
+
+if getgenv().Aimbot then return end
+
+--// Load Aimbot V2 (Raw)
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Exunys/Aimbot-V2/main/Resources/Scripts/Raw%20Main.lua"))()
 
 --// Variables
-local LocalPlayer = Players.LocalPlayer
-local Title = "Exunys Developer"
-local FileNames = {"Aimbot", "Configuration.json", "Drawing.json"}
-local Typing, Running, Animation, RequiredDistance, ServiceConnections = false, false, nil, 2000, {}
 
---// Script Settings
-Environment.Settings = {
-    SendNotifications = true,
-    SaveSettings = true, -- Re-execute upon changing
-    ReloadOnTeleport = true,
-    Enabled = true,
-    TeamCheck = false,
-    AliveCheck = true,
-    WallCheck = false, -- Laggy
-    Sensitivity = 0, -- Animation length (in seconds) before fully locking onto target
-    ThirdPerson = false, -- Uses mousemoverel instead of CFrame to support locking in third person (could be choppy)
-    ThirdPersonSensitivity = 3, -- Boundary: 0.1 - 5
-    TriggerKey = "MouseButton2",
-    Toggle = false,
-    LockPart = "Head" -- Body part to lock on
-}
+local Aimbot = getgenv().Aimbot
+local Settings, FOVSettings, Functions = Aimbot.Settings, Aimbot.FOVSettings, Aimbot.Functions
 
-Environment.FOVSettings = {
-    Enabled = true,
-    Visible = true,
-    Amount = 90,
-    Color = "255, 255, 255",
-    LockedColor = "255, 70, 70",
-    Transparency = 0.5,
-    Sides = 60,
-    Thickness = 1,
-    Filled = false
-}
+local Library = loadstring(game:GetObjects("rbxassetid://7657867786")[1].Source)() -- Pepsi's UI Library
 
-Environment.FOVCircle = Drawing.new("Circle")
-Environment.Locked = nil
+local Parts = {"Head", "HumanoidRootPart", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "LeftHand", "RightHand", "LeftLowerArm", "RightLowerArm", "LeftUpperArm", "RightUpperArm", "LeftFoot", "LeftLowerLeg", "UpperTorso", "LeftUpperLeg", "RightFoot", "RightLowerLeg", "LowerTorso", "RightUpperLeg"}
 
---// GUI Menu Creation
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = LocalPlayer.PlayerGui
-ScreenGui.Name = "AimbotMenu"
+--// Frame
 
-local MenuFrame = Instance.new("Frame")
-MenuFrame.Size = UDim2.new(0, 400, 0, 300)
-MenuFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
-MenuFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MenuFrame.Parent = ScreenGui
+Library.UnloadCallback = Functions.Exit
 
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Text = "Aimbot Settings"
-TitleLabel.Size = UDim2.new(1, 0, 0, 50)
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-TitleLabel.TextSize = 24
-TitleLabel.Parent = MenuFrame
+local MainFrame = Library:CreateWindow({
+	Name = "Aimbot V2",
+	Themeable = {
+		Image = "7059346386",
+		Info = "Made by Exunys\nPowered by Pepsi's UI Library",
+		Credit = false
+	},
+	Background = "",
+	Theme = [[{"__Designer.Colors.section":"ADC7FF","__Designer.Colors.topGradient":"1B242F","__Designer.Settings.ShowHideKey":"Enum.KeyCode.RightShift","__Designer.Colors.otherElementText":"54637D","__Designer.Colors.hoveredOptionBottom":"38667D","__Designer.Background.ImageAssetID":"","__Designer.Colors.unhoveredOptionTop":"407495","__Designer.Colors.innerBorder":"2C4168","__Designer.Colors.unselectedOption":"4E6EA0","__Designer.Background.UseBackgroundImage":true,"__Designer.Files.WorkspaceFile":"Aimbot V2","__Designer.Colors.main":"23A0FF","__Designer.Colors.outerBorder":"162943","__Designer.Background.ImageColor":"FFFFFF","__Designer.Colors.tabText":"C9DFF1","__Designer.Colors.elementBorder":"111D26","__Designer.Colors.sectionBackground":"0E141C","__Designer.Colors.selectedOption":"558AC2","__Designer.Colors.background":"11182A","__Designer.Colors.bottomGradient":"202B42","__Designer.Background.ImageTransparency":95,"__Designer.Colors.hoveredOptionTop":"4885A0","__Designer.Colors.elementText":"7692B8","__Designer.Colors.unhoveredOptionBottom":"5471C4"}]]
+})
 
--- Toggle Button for Aimbot
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0, 380, 0, 50)
-ToggleButton.Position = UDim2.new(0, 10, 0, 60)
-ToggleButton.Text = "Toggle Aimbot: Off"
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-ToggleButton.TextSize = 18
-ToggleButton.Parent = MenuFrame
+--// Tabs
 
-ToggleButton.MouseButton1Click:Connect(function()
-    Environment.Settings.Enabled = not Environment.Settings.Enabled
-    if Environment.Settings.Enabled then
-        ToggleButton.Text = "Toggle Aimbot: On"
-    else
-        ToggleButton.Text = "Toggle Aimbot: Off"
-    end
-end)
+local SettingsTab = MainFrame:CreateTab({
+	Name = "Settings"
+})
 
--- Sensitivity Slider
-local SensitivityLabel = Instance.new("TextLabel")
-SensitivityLabel.Size = UDim2.new(1, 0, 0, 30)
-SensitivityLabel.Position = UDim2.new(0, 0, 0, 120)
-SensitivityLabel.Text = "Sensitivity: " .. Environment.Settings.Sensitivity
-SensitivityLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-SensitivityLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-SensitivityLabel.TextSize = 18
-SensitivityLabel.Parent = MenuFrame
+local FOVSettingsTab = MainFrame:CreateTab({
+	Name = "FOV Settings"
+})
 
-local SensitivitySlider = Instance.new("Slider")
-SensitivitySlider.Size = UDim2.new(1, -20, 0, 20)
-SensitivitySlider.Position = UDim2.new(0, 10, 0, 150)
-SensitivitySlider.MinValue = 0
-SensitivitySlider.MaxValue = 5
-SensitivitySlider.Value = Environment.Settings.Sensitivity
-SensitivitySlider.Parent = MenuFrame
+local FunctionsTab = MainFrame:CreateTab({
+	Name = "Functions"
+})
 
-SensitivitySlider.Changed:Connect(function(value)
-    Environment.Settings.Sensitivity = value
-    SensitivityLabel.Text = "Sensitivity: " .. math.floor(value)
-end)
+--// Settings - Sections
 
--- FOV Slider
-local FOVLabel = Instance.new("TextLabel")
-FOVLabel.Size = UDim2.new(1, 0, 0, 30)
-FOVLabel.Position = UDim2.new(0, 0, 0, 180)
-FOVLabel.Text = "FOV: " .. Environment.FOVSettings.Amount
-FOVLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-FOVLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-FOVLabel.TextSize = 18
-FOVLabel.Parent = MenuFrame
+local Values = SettingsTab:CreateSection({
+	Name = "Values"
+})
 
-local FOVSlider = Instance.new("Slider")
-FOVSlider.Size = UDim2.new(1, -20, 0, 20)
-FOVSlider.Position = UDim2.new(0, 10, 0, 210)
-FOVSlider.MinValue = 30
-FOVSlider.MaxValue = 180
-FOVSlider.Value = Environment.FOVSettings.Amount
-FOVSlider.Parent = MenuFrame
+local Checks = SettingsTab:CreateSection({
+	Name = "Checks"
+})
 
-FOVSlider.Changed:Connect(function(value)
-    Environment.FOVSettings.Amount = value
-    FOVLabel.Text = "FOV: " .. math.floor(value)
-end)
+local ThirdPerson = SettingsTab:CreateSection({
+	Name = "Third Person"
+})
 
--- Exit Button
-local ExitButton = Instance.new("TextButton")
-ExitButton.Size = UDim2.new(0, 380, 0, 50)
-ExitButton.Position = UDim2.new(0, 10, 0, 240)
-ExitButton.Text = "Exit"
-ExitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ExitButton.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-ExitButton.TextSize = 18
-ExitButton.Parent = MenuFrame
+--// FOV Settings - Sections
 
-ExitButton.MouseButton1Click:Connect(function()
-    Environment.Functions:Exit()
-end)
+local FOV_Values = FOVSettingsTab:CreateSection({
+	Name = "Values"
+})
 
---// Preventing Multiple Processes
-pcall(function()
-    getgenv().Aimbot.Functions:Exit()
-end)
+local FOV_Appearance = FOVSettingsTab:CreateSection({
+	Name = "Appearance"
+})
 
---// Functions
+--// Functions - Sections
 
-Environment.Functions = {}
+local FunctionsSection = FunctionsTab:CreateSection({
+	Name = "Functions"
+})
 
-function Environment.Functions:Exit()
-    SaveSettings()
+--// Settings / Values
 
-    for _, v in next, ServiceConnections do
-        v:Disconnect()
-    end
+Values:AddToggle({
+	Name = "Enabled",
+	Value = Settings.Enabled,
+	Callback = function(New, Old)
+		Settings.Enabled = New
+	end
+}).Default = Settings.Enabled
 
-    if Environment.FOVCircle.Remove then Environment.FOVCircle:Remove() end
+Values:AddToggle({
+	Name = "Toggle",
+	Value = Settings.Toggle,
+	Callback = function(New, Old)
+		Settings.Toggle = New
+	end
+}).Default = Settings.Toggle
 
-    getgenv().Aimbot.Functions = nil
-    getgenv().Aimbot = nil
-    ScreenGui:Destroy() -- Close the GUI when exiting
-end
+Settings.LockPart = Parts[1]; Values:AddDropdown({
+	Name = "Lock Part",
+	Value = Parts[1],
+	Callback = function(New, Old)
+		Settings.LockPart = New
+	end,
+	List = Parts,
+	Nothing = "Head"
+}).Default = Parts[1]
 
-function Environment.Functions:Restart()
-    SaveSettings()
+Values:AddTextbox({ -- Using a Textbox instead of a Keybind because the UI Library doesn't support Mouse inputs like Left Click / Right Click...
+	Name = "Hotkey",
+	Value = Settings.TriggerKey,
+	Callback = function(New, Old)
+		Settings.TriggerKey = New
+	end
+}).Default = Settings.TriggerKey
 
-    for _, v in next, ServiceConnections do
-        v:Disconnect()
-    end
+--[[
+Values:AddKeybind({
+	Name = "Hotkey",
+	Value = Settings.TriggerKey,
+	Callback = function(New, Old)
+		Settings.TriggerKey = stringmatch(tostring(New), "Enum%.[UserInputType]*[KeyCode]*%.(.+)")
+	end,
+}).Default = Settings.TriggerKey
+]]
 
-    Load()
-end
+Values:AddSlider({
+	Name = "Sensitivity",
+	Value = Settings.Sensitivity,
+	Callback = function(New, Old)
+		Settings.Sensitivity = New
+	end,
+	Min = 0,
+	Max = 1,
+	Decimals = 2
+}).Default = Settings.Sensitivity
 
-function Environment.Functions:ResetSettings()
-    Environment.Settings = {
-        SendNotifications = true,
-        SaveSettings = true,
-        ReloadOnTeleport = true,
-        Enabled = true,
-        TeamCheck = false,
-        AliveCheck = true,
-        WallCheck = false,
-        Sensitivity = 0,
-        ThirdPerson = false,
-        ThirdPersonSensitivity = 3,
-        TriggerKey = "MouseButton2",
-        Toggle = false,
-        LockPart = "Head"
-    }
+--// Settings / Checks
 
-    Environment.FOVSettings = {
-        Enabled = true,
-        Visible = true,
-        Amount = 90,
-        Color = "255, 255, 255",
-        LockedColor = "255, 70, 70",
-        Transparency = 0.5,
-        Sides = 60,
-        Thickness = 1,
-        Filled = false
-    }
-end
+Checks:AddToggle({
+	Name = "Team Check",
+	Value = Settings.TeamCheck,
+	Callback = function(New, Old)
+		Settings.TeamCheck = New
+	end
+}).Default = Settings.TeamCheck
 
--- Load
-Load(); SendNotification(Title, "Aimbot script successfully loaded!", 5)
+Checks:AddToggle({
+	Name = "Wall Check",
+	Value = Settings.WallCheck,
+	Callback = function(New, Old)
+		Settings.WallCheck = New
+	end
+}).Default = Settings.WallCheck
+
+Checks:AddToggle({
+	Name = "Alive Check",
+	Value = Settings.AliveCheck,
+	Callback = function(New, Old)
+		Settings.AliveCheck = New
+	end
+}).Default = Settings.AliveCheck
+
+--// Settings / ThirdPerson
+
+ThirdPerson:AddToggle({
+	Name = "Enable Third Person",
+	Value = Settings.ThirdPerson,
+	Callback = function(New, Old)
+		Settings.ThirdPerson = New
+	end
+}).Default = Settings.ThirdPerson
+
+ThirdPerson:AddSlider({
+	Name = "Sensitivity",
+	Value = Settings.ThirdPersonSensitivity,
+	Callback = function(New, Old)
+		Settings.ThirdPersonSensitivity = New
+	end,
+	Min = 0.1,
+	Max = 5,
+	Decimals = 1
+}).Default = Settings.ThirdPersonSensitivity
+
+--// FOV Settings / Values
+
+FOV_Values:AddToggle({
+	Name = "Enabled",
+	Value = FOVSettings.Enabled,
+	Callback = function(New, Old)
+		FOVSettings.Enabled = New
+	end
+}).Default = FOVSettings.Enabled
+
+FOV_Values:AddToggle({
+	Name = "Visible",
+	Value = FOVSettings.Visible,
+	Callback = function(New, Old)
+		FOVSettings.Visible = New
+	end
+}).Default = FOVSettings.Visible
+
+FOV_Values:AddSlider({
+	Name = "Amount",
+	Value = FOVSettings.Amount,
+	Callback = function(New, Old)
+		FOVSettings.Amount = New
+	end,
+	Min = 10,
+	Max = 300
+}).Default = FOVSettings.Amount
+
+--// FOV Settings / Appearance
+
+FOV_Appearance:AddToggle({
+	Name = "Filled",
+	Value = FOVSettings.Filled,
+	Callback = function(New, Old)
+		FOVSettings.Filled = New
+	end
+}).Default = FOVSettings.Filled
+
+FOV_Appearance:AddSlider({
+	Name = "Transparency",
+	Value = FOVSettings.Transparency,
+	Callback = function(New, Old)
+		FOVSettings.Transparency = New
+	end,
+	Min = 0,
+	Max = 1,
+	Decimal = 1
+}).Default = FOVSettings.Transparency
+
+FOV_Appearance:AddSlider({
+	Name = "Sides",
+	Value = FOVSettings.Sides,
+	Callback = function(New, Old)
+		FOVSettings.Sides = New
+	end,
+	Min = 3,
+	Max = 60
+}).Default = FOVSettings.Sides
+
+FOV_Appearance:AddSlider({
+	Name = "Thickness",
+	Value = FOVSettings.Thickness,
+	Callback = function(New, Old)
+		FOVSettings.Thickness = New
+	end,
+	Min = 1,
+	Max = 50
+}).Default = FOVSettings.Thickness
+
+FOV_Appearance:AddColorpicker({
+	Name = "Color",
+	Value = FOVSettings.Color,
+	Callback = function(New, Old)
+		FOVSettings.Color = New
+	end
+}).Default = FOVSettings.Color
+
+FOV_Appearance:AddColorpicker({
+	Name = "Locked Color",
+	Value = FOVSettings.LockedColor,
+	Callback = function(New, Old)
+		FOVSettings.LockedColor = New
+	end
+}).Default = FOVSettings.LockedColor
+
+--// Functions / Functions
+
+FunctionsSection:AddButton({
+	Name = "Reset Settings",
+	Callback = function()
+		Functions.ResetSettings()
+		Library.ResetAll()
+	end
+})
+
+FunctionsSection:AddButton({
+	Name = "Restart",
+	Callback = Functions.Restart
+})
+
+FunctionsSection:AddButton({
+	Name = "Exit",
+	Callback = function()
+		Functions:Exit()
+		Library.Unload()
+	end
+})
+
+FunctionsSection:AddButton({
+	Name = "Copy Script Page",
+	Callback = function()
+		setclipboard("https://github.com/Exunys/Aimbot-V2")
+	end
+})
