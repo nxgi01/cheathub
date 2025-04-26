@@ -39,7 +39,22 @@ Environment.Settings = {
     LockPart = "Head" -- Body part to lock on
 }
 
---// Creating Menu (GUI)
+Environment.FOVSettings = {
+    Enabled = true,
+    Visible = true,
+    Amount = 90,
+    Color = "255, 255, 255",
+    LockedColor = "255, 70, 70",
+    Transparency = 0.5,
+    Sides = 60,
+    Thickness = 1,
+    Filled = false
+}
+
+Environment.FOVCircle = Drawing.new("Circle")
+Environment.Locked = nil
+
+--// GUI Menu Creation
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = LocalPlayer.PlayerGui
 ScreenGui.Name = "AimbotMenu"
@@ -142,14 +157,63 @@ pcall(function()
     getgenv().Aimbot.Functions:Exit()
 end)
 
---// Environment
-getgenv().Aimbot = {}
-local Environment = getgenv().Aimbot
+--// Functions
 
--- Rest of your script logic continues...
+Environment.Functions = {}
 
 function Environment.Functions:Exit()
-    ScreenGui:Destroy()
-    -- Add any other exit functionality here, such as saving settings, etc.
+    SaveSettings()
+
+    for _, v in next, ServiceConnections do
+        v:Disconnect()
+    end
+
+    if Environment.FOVCircle.Remove then Environment.FOVCircle:Remove() end
+
+    getgenv().Aimbot.Functions = nil
+    getgenv().Aimbot = nil
+    ScreenGui:Destroy() -- Close the GUI when exiting
 end
 
+function Environment.Functions:Restart()
+    SaveSettings()
+
+    for _, v in next, ServiceConnections do
+        v:Disconnect()
+    end
+
+    Load()
+end
+
+function Environment.Functions:ResetSettings()
+    Environment.Settings = {
+        SendNotifications = true,
+        SaveSettings = true,
+        ReloadOnTeleport = true,
+        Enabled = true,
+        TeamCheck = false,
+        AliveCheck = true,
+        WallCheck = false,
+        Sensitivity = 0,
+        ThirdPerson = false,
+        ThirdPersonSensitivity = 3,
+        TriggerKey = "MouseButton2",
+        Toggle = false,
+        LockPart = "Head"
+    }
+
+    Environment.FOVSettings = {
+        Enabled = true,
+        Visible = true,
+        Amount = 90,
+        Color = "255, 255, 255",
+        LockedColor = "255, 70, 70",
+        Transparency = 0.5,
+        Sides = 60,
+        Thickness = 1,
+        Filled = false
+    }
+end
+
+-- Load
+Load(); SendNotification(Title, "Aimbot script successfully loaded!", 5)
