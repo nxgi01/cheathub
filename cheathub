@@ -1243,3 +1243,4 @@ SkeletonTransparency:OnChanged(function(Value)
 end)
 
 local MainSection = Tabs.ESP:AddSection("Main ESP")
+end)
