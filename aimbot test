@@ -1,299 +1,209 @@
+--// Full Nova Selfmade UI + Working Aimbot //--
 
---// Cache
+-- Services
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 
-local loadstring, game, getgenv, setclipboard = loadstring, game, getgenv, setclipboard
+-- Settings
+local Settings = {
+    AimbotEnabled = false,
+    AimbotKey = Enum.KeyCode.E,
+    AimPart = "Head",
+    TeamCheck = true,
+    FOV = 150
+}
 
---// Loaded check
+-- UI Creation
+local NovaGui = Instance.new("ScreenGui", game.CoreGui)
+NovaGui.Name = "NovaUI"
 
-if getgenv().Aimbot then return end
+local MainFrame = Instance.new("Frame", NovaGui)
+MainFrame.Size = UDim2.new(0, 500, 0, 300)
+MainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+MainFrame.Active = true
+MainFrame.Draggable = true
 
---// Load Aimbot V2 (Raw)
+local TitleBar = Instance.new("TextLabel", MainFrame)
+TitleBar.Size = UDim2.new(1,0,0,40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(20,20,20)
+TitleBar.Text = "Nova"
+TitleBar.TextColor3 = Color3.fromRGB(255,255,255)
+TitleBar.Font = Enum.Font.GothamBold
+TitleBar.TextSize = 24
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Exunys/Aimbot-V2/main/Resources/Scripts/Raw%20Main.lua"))()
+local Sidebar = Instance.new("Frame", MainFrame)
+Sidebar.Size = UDim2.new(0,120,1, -40)
+Sidebar.Position = UDim2.new(0,0,0,40)
+Sidebar.BackgroundColor3 = Color3.fromRGB(25,25,25)
 
---// Variables
+local ContentFrame = Instance.new("Frame", MainFrame)
+ContentFrame.Size = UDim2.new(1, -120, 1, -40)
+ContentFrame.Position = UDim2.new(0,120,0,40)
+ContentFrame.BackgroundTransparency = 1
 
-local Aimbot = getgenv().Aimbot
-local Settings, FOVSettings, Functions = Aimbot.Settings, Aimbot.FOVSettings, Aimbot.Functions
+local Tabs = {"Aimbot", "CarMod", "Teleport", "Esp", "Autofarm", "Misc", "Visual"}
+local TabButtons = {}
+local CurrentTab = "Aimbot"
 
-local Library = loadstring(game:GetObjects("rbxassetid://7657867786")[1].Source)() -- Pepsi's UI Library
+-- Dynamic YPos
+local YPos = 10
 
-local Parts = {"Head", "HumanoidRootPart", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "LeftHand", "RightHand", "LeftLowerArm", "RightLowerArm", "LeftUpperArm", "RightUpperArm", "LeftFoot", "LeftLowerLeg", "UpperTorso", "LeftUpperLeg", "RightFoot", "RightLowerLeg", "LowerTorso", "RightUpperLeg"}
+local function ClearContent()
+    for _,v in pairs(ContentFrame:GetChildren()) do
+        v:Destroy()
+    end
+    YPos = 10
+end
 
---// Frame
+local function AddLabel(text)
+    local Label = Instance.new("TextLabel", ContentFrame)
+    Label.Size = UDim2.new(1,-20,0,30)
+    Label.Position = UDim2.new(0,10,0,YPos)
+    Label.BackgroundTransparency = 1
+    Label.Text = text
+    Label.TextColor3 = Color3.fromRGB(255,255,255)
+    Label.Font = Enum.Font.GothamBold
+    Label.TextSize = 18
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    YPos += 35
+end
 
-Library.UnloadCallback = Functions.Exit
+local function AddToggle(text, setting)
+    local Button = Instance.new("TextButton", ContentFrame)
+    Button.Size = UDim2.new(1,-20,0,30)
+    Button.Position = UDim2.new(0,10,0,YPos)
+    Button.BackgroundColor3 = Settings[setting] and Color3.fromRGB(0,170,255) or Color3.fromRGB(50,50,50)
+    Button.Text = text
+    Button.TextColor3 = Color3.fromRGB(255,255,255)
+    Button.Font = Enum.Font.Gotham
+    Button.TextSize = 18
+    Button.TextXAlignment = Enum.TextXAlignment.Left
 
-local MainFrame = Library:CreateWindow({
-	Name = "Aimbot V2",
-	Themeable = {
-		Image = "7059346386",
-		Info = "Made by Exunys\nPowered by Pepsi's UI Library",
-		Credit = false
-	},
-	Background = "",
-	Theme = [[{"__Designer.Colors.section":"ADC7FF","__Designer.Colors.topGradient":"1B242F","__Designer.Settings.ShowHideKey":"Enum.KeyCode.RightShift","__Designer.Colors.otherElementText":"54637D","__Designer.Colors.hoveredOptionBottom":"38667D","__Designer.Background.ImageAssetID":"","__Designer.Colors.unhoveredOptionTop":"407495","__Designer.Colors.innerBorder":"2C4168","__Designer.Colors.unselectedOption":"4E6EA0","__Designer.Background.UseBackgroundImage":true,"__Designer.Files.WorkspaceFile":"Aimbot V2","__Designer.Colors.main":"23A0FF","__Designer.Colors.outerBorder":"162943","__Designer.Background.ImageColor":"FFFFFF","__Designer.Colors.tabText":"C9DFF1","__Designer.Colors.elementBorder":"111D26","__Designer.Colors.sectionBackground":"0E141C","__Designer.Colors.selectedOption":"558AC2","__Designer.Colors.background":"11182A","__Designer.Colors.bottomGradient":"202B42","__Designer.Background.ImageTransparency":95,"__Designer.Colors.hoveredOptionTop":"4885A0","__Designer.Colors.elementText":"7692B8","__Designer.Colors.unhoveredOptionBottom":"5471C4"}]]
-})
+    Button.MouseButton1Click:Connect(function()
+        Settings[setting] = not Settings[setting]
+        Button.BackgroundColor3 = Settings[setting] and Color3.fromRGB(0,170,255) or Color3.fromRGB(50,50,50)
+    end)
 
---// Tabs
+    YPos += 35
+end
 
-local SettingsTab = MainFrame:CreateTab({
-	Name = "Settings"
-})
+local function AddDropdown(text, options, setting)
+    local Dropdown = Instance.new("TextButton", ContentFrame)
+    Dropdown.Size = UDim2.new(1,-20,0,30)
+    Dropdown.Position = UDim2.new(0,10,0,YPos)
+    Dropdown.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    Dropdown.Text = text..": "..Settings[setting]
+    Dropdown.TextColor3 = Color3.fromRGB(255,255,255)
+    Dropdown.Font = Enum.Font.Gotham
+    Dropdown.TextSize = 18
+    Dropdown.TextXAlignment = Enum.TextXAlignment.Left
 
-local FOVSettingsTab = MainFrame:CreateTab({
-	Name = "FOV Settings"
-})
+    local index = 1
 
-local FunctionsTab = MainFrame:CreateTab({
-	Name = "Functions"
-})
+    Dropdown.MouseButton1Click:Connect(function()
+        index = (index % #options) + 1
+        Settings[setting] = options[index]
+        Dropdown.Text = text..": "..Settings[setting]
+    end)
 
---// Settings - Sections
+    YPos += 35
+end
 
-local Values = SettingsTab:CreateSection({
-	Name = "Values"
-})
+local function AddKeybind(text, setting)
+    local KeyButton = Instance.new("TextButton", ContentFrame)
+    KeyButton.Size = UDim2.new(1,-20,0,30)
+    KeyButton.Position = UDim2.new(0,10,0,YPos)
+    KeyButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    KeyButton.Text = text..": "..Settings[setting].Name
+    KeyButton.TextColor3 = Color3.fromRGB(255,255,255)
+    KeyButton.Font = Enum.Font.Gotham
+    KeyButton.TextSize = 18
+    KeyButton.TextXAlignment = Enum.TextXAlignment.Left
 
-local Checks = SettingsTab:CreateSection({
-	Name = "Checks"
-})
+    KeyButton.MouseButton1Click:Connect(function()
+        KeyButton.Text = text..": ..."
+        local connection
+        connection = UIS.InputBegan:Connect(function(input, gpe)
+            if not gpe then
+                Settings[setting] = input.KeyCode
+                KeyButton.Text = text..": "..Settings[setting].Name
+                connection:Disconnect()
+            end
+        end)
+    end)
 
-local ThirdPerson = SettingsTab:CreateSection({
-	Name = "Third Person"
-})
+    YPos += 35
+end
 
---// FOV Settings - Sections
+local function LoadAimbotTab()
+    ClearContent()
+    AddLabel("Aimbot Settings")
+    AddToggle("Enable Aimbot", "AimbotEnabled")
+    AddKeybind("Aimbot Key", "AimbotKey")
+    AddDropdown("AimPart", {"Head", "Torso"}, "AimPart")
+    AddToggle("Team Check", "TeamCheck")
+end
 
-local FOV_Values = FOVSettingsTab:CreateSection({
-	Name = "Values"
-})
+local function SelectTab(tab)
+    CurrentTab = tab
+    if tab == "Aimbot" then
+        LoadAimbotTab()
+    else
+        ClearContent()
+        AddLabel(tab.." coming soon...")
+    end
+end
 
-local FOV_Appearance = FOVSettingsTab:CreateSection({
-	Name = "Appearance"
-})
+for i, tab in ipairs(Tabs) do
+    local TabButton = Instance.new("TextButton", Sidebar)
+    TabButton.Size = UDim2.new(1,0,0,30)
+    TabButton.Position = UDim2.new(0,0,0,(i-1)*35)
+    TabButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    TabButton.Text = tab
+    TabButton.TextColor3 = Color3.fromRGB(255,255,255)
+    TabButton.Font = Enum.Font.GothamBold
+    TabButton.TextSize = 18
 
---// Functions - Sections
+    TabButton.MouseButton1Click:Connect(function()
+        SelectTab(tab)
+    end)
 
-local FunctionsSection = FunctionsTab:CreateSection({
-	Name = "Functions"
-})
+    TabButtons[tab] = TabButton
+end
 
---// Settings / Values
+SelectTab("Aimbot") -- Default Tab
 
-Values:AddToggle({
-	Name = "Enabled",
-	Value = Settings.Enabled,
-	Callback = function(New, Old)
-		Settings.Enabled = New
-	end
-}).Default = Settings.Enabled
+--// Aimbot Funktion
 
-Values:AddToggle({
-	Name = "Toggle",
-	Value = Settings.Toggle,
-	Callback = function(New, Old)
-		Settings.Toggle = New
-	end
-}).Default = Settings.Toggle
+local function GetClosestPlayer()
+    local closest, shortestDist = nil, math.huge
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild(Settings.AimPart) then
+            if Settings.TeamCheck and plr.Team == LocalPlayer.Team then continue end
+            local pos, visible = Camera:WorldToViewportPoint(plr.Character[Settings.AimPart].Position)
+            if visible then
+                local dist = (Vector2.new(pos.X,pos.Y) - UIS:GetMouseLocation()).Magnitude
+                if dist < shortestDist and dist < Settings.FOV then
+                    closest = plr
+                    shortestDist = dist
+                end
+            end
+        end
+    end
+    return closest
+end
 
-Settings.LockPart = Parts[1]; Values:AddDropdown({
-	Name = "Lock Part",
-	Value = Parts[1],
-	Callback = function(New, Old)
-		Settings.LockPart = New
-	end,
-	List = Parts,
-	Nothing = "Head"
-}).Default = Parts[1]
+RunService.RenderStepped:Connect(function()
+    if Settings.AimbotEnabled and UIS:IsKeyDown(Settings.AimbotKey) then
+        local target = GetClosestPlayer()
+        if target then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character[Settings.AimPart].Position)
+        end
+    end
+end)
 
-Values:AddTextbox({ -- Using a Textbox instead of a Keybind because the UI Library doesn't support Mouse inputs like Left Click / Right Click...
-	Name = "Hotkey",
-	Value = Settings.TriggerKey,
-	Callback = function(New, Old)
-		Settings.TriggerKey = New
-	end
-}).Default = Settings.TriggerKey
-
---[[
-Values:AddKeybind({
-	Name = "Hotkey",
-	Value = Settings.TriggerKey,
-	Callback = function(New, Old)
-		Settings.TriggerKey = stringmatch(tostring(New), "Enum%.[UserInputType]*[KeyCode]*%.(.+)")
-	end,
-}).Default = Settings.TriggerKey
-]]
-
-Values:AddSlider({
-	Name = "Sensitivity",
-	Value = Settings.Sensitivity,
-	Callback = function(New, Old)
-		Settings.Sensitivity = New
-	end,
-	Min = 0,
-	Max = 1,
-	Decimals = 2
-}).Default = Settings.Sensitivity
-
---// Settings / Checks
-
-Checks:AddToggle({
-	Name = "Team Check",
-	Value = Settings.TeamCheck,
-	Callback = function(New, Old)
-		Settings.TeamCheck = New
-	end
-}).Default = Settings.TeamCheck
-
-Checks:AddToggle({
-	Name = "Wall Check",
-	Value = Settings.WallCheck,
-	Callback = function(New, Old)
-		Settings.WallCheck = New
-	end
-}).Default = Settings.WallCheck
-
-Checks:AddToggle({
-	Name = "Alive Check",
-	Value = Settings.AliveCheck,
-	Callback = function(New, Old)
-		Settings.AliveCheck = New
-	end
-}).Default = Settings.AliveCheck
-
---// Settings / ThirdPerson
-
-ThirdPerson:AddToggle({
-	Name = "Enable Third Person",
-	Value = Settings.ThirdPerson,
-	Callback = function(New, Old)
-		Settings.ThirdPerson = New
-	end
-}).Default = Settings.ThirdPerson
-
-ThirdPerson:AddSlider({
-	Name = "Sensitivity",
-	Value = Settings.ThirdPersonSensitivity,
-	Callback = function(New, Old)
-		Settings.ThirdPersonSensitivity = New
-	end,
-	Min = 0.1,
-	Max = 5,
-	Decimals = 1
-}).Default = Settings.ThirdPersonSensitivity
-
---// FOV Settings / Values
-
-FOV_Values:AddToggle({
-	Name = "Enabled",
-	Value = FOVSettings.Enabled,
-	Callback = function(New, Old)
-		FOVSettings.Enabled = New
-	end
-}).Default = FOVSettings.Enabled
-
-FOV_Values:AddToggle({
-	Name = "Visible",
-	Value = FOVSettings.Visible,
-	Callback = function(New, Old)
-		FOVSettings.Visible = New
-	end
-}).Default = FOVSettings.Visible
-
-FOV_Values:AddSlider({
-	Name = "Amount",
-	Value = FOVSettings.Amount,
-	Callback = function(New, Old)
-		FOVSettings.Amount = New
-	end,
-	Min = 10,
-	Max = 300
-}).Default = FOVSettings.Amount
-
---// FOV Settings / Appearance
-
-FOV_Appearance:AddToggle({
-	Name = "Filled",
-	Value = FOVSettings.Filled,
-	Callback = function(New, Old)
-		FOVSettings.Filled = New
-	end
-}).Default = FOVSettings.Filled
-
-FOV_Appearance:AddSlider({
-	Name = "Transparency",
-	Value = FOVSettings.Transparency,
-	Callback = function(New, Old)
-		FOVSettings.Transparency = New
-	end,
-	Min = 0,
-	Max = 1,
-	Decimal = 1
-}).Default = FOVSettings.Transparency
-
-FOV_Appearance:AddSlider({
-	Name = "Sides",
-	Value = FOVSettings.Sides,
-	Callback = function(New, Old)
-		FOVSettings.Sides = New
-	end,
-	Min = 3,
-	Max = 60
-}).Default = FOVSettings.Sides
-
-FOV_Appearance:AddSlider({
-	Name = "Thickness",
-	Value = FOVSettings.Thickness,
-	Callback = function(New, Old)
-		FOVSettings.Thickness = New
-	end,
-	Min = 1,
-	Max = 50
-}).Default = FOVSettings.Thickness
-
-FOV_Appearance:AddColorpicker({
-	Name = "Color",
-	Value = FOVSettings.Color,
-	Callback = function(New, Old)
-		FOVSettings.Color = New
-	end
-}).Default = FOVSettings.Color
-
-FOV_Appearance:AddColorpicker({
-	Name = "Locked Color",
-	Value = FOVSettings.LockedColor,
-	Callback = function(New, Old)
-		FOVSettings.LockedColor = New
-	end
-}).Default = FOVSettings.LockedColor
-
---// Functions / Functions
-
-FunctionsSection:AddButton({
-	Name = "Reset Settings",
-	Callback = function()
-		Functions.ResetSettings()
-		Library.ResetAll()
-	end
-})
-
-FunctionsSection:AddButton({
-	Name = "Restart",
-	Callback = Functions.Restart
-})
-
-FunctionsSection:AddButton({
-	Name = "Exit",
-	Callback = function()
-		Functions:Exit()
-		Library.Unload()
-	end
-})
-
-FunctionsSection:AddButton({
-	Name = "Copy Script Page",
-	Callback = function()
-		setclipboard("https://github.com/Exunys/Aimbot-V2")
-	end
-})
+print("[Nova] Loaded!")
