@@ -1,68 +1,118 @@
--- AutoAimProjectileScript (ServerScript)
+-- LocalScript in StarterPlayerScripts
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UIS = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
 
--- Adjust these as needed
-local projectileSpeed = 100  -- studs per second
-local maxRange = 150         -- max aim distance
+-- Create GUI
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "AutoAimGui"
 
--- Predict where the target will be when the projectile gets there
-local function predictTargetPosition(target, projectileStartPos, speed)
-	if not target:FindFirstChild("HumanoidRootPart") then return nil end
-	
-	local targetPos = target.HumanoidRootPart.Position
-	local targetVel = target.HumanoidRootPart.Velocity
-	
-	local distance = (targetPos - projectileStartPos).Magnitude
-	local travelTime = distance / speed
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 160, 0, 40)
+button.Position = UDim2.new(0, 10, 0, 10)
+button.Text = "Auto-Aim: OFF"
+button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Parent = screenGui
 
-	return targetPos + targetVel * travelTime
+-- Auto-Aim flag
+local autoAimFlag = Instance.new("BoolValue")
+autoAimFlag.Name = "AutoAimEnabled"
+autoAimFlag.Value = false
+autoAimFlag.Parent = player
+
+-- Toggle Button
+button.MouseButton1Click:Connect(function()
+	autoAimFlag.Value = not autoAimFlag.Value
+	button.Text = autoAimFlag.Value and "Auto-Aim: ON" or "Auto-Aim: OFF"
+end)
+
+-- Shooting
+mouse.Button1Down:Connect(function()
+	local character = player.Character
+	if not character then return end
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	-- Fire the Remote to launch a projectile
+	ReplicatedStorage:WaitForChild("LaunchProjectile"):FireServer(
+		root.Position,
+		mouse.Hit.Position
+	)
+end)
+
+-------------------------------------------------------
+-- Server Script: Place in ServerScriptService
+-------------------------------------------------------
+
+-- Make sure this is in ServerScriptService
+-- And you have a RemoteEvent in ReplicatedStorage named LaunchProjectile
+
+local Players = game:GetService("Players")
+local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local projectileSpeed = 100
+local maxRange = 150
+
+-- Find closest enemy to player
+local function findClosestEnemy(player, origin)
+	local closest, closestDist = nil, maxRange
+	for _, other in pairs(Players:GetPlayers()) do
+		if other ~= player and other.Character and other.Character:FindFirstChild("HumanoidRootPart") then
+			local dist = (other.Character.HumanoidRootPart.Position - origin).Magnitude
+			if dist < closestDist then
+				closest = other.Character
+				closestDist = dist
+			end
+		end
+	end
+	return closest
 end
 
--- Find the closest enemy to aim at
-local function findClosestEnemy(player, origin)
-	local closestTarget = nil
-	local shortestDistance = maxRange
+-- Predict future position of target
+local function predictTargetPosition(target, origin)
+	local hrp = target:FindFirstChild("HumanoidRootPart")
+	if not hrp then return nil end
+	local targetPos = hrp.Position
+	local velocity = hrp.Velocity
+	local distance = (targetPos - origin).Magnitude
+	local time = distance / projectileSpeed
+	return targetPos + velocity * time
+end
 
-	for _, otherPlayer in pairs(Players:GetPlayers()) do
-		if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
-			local targetPos = otherPlayer.Character.HumanoidRootPart.Position
-			local distance = (targetPos - origin).Magnitude
+ReplicatedStorage:WaitForChild("LaunchProjectile").OnServerEvent:Connect(function(player, origin, firePoint)
+	local autoAim = player:FindFirstChild("AutoAimEnabled") and player.AutoAimEnabled.Value
+	local direction
 
-			if distance < shortestDistance then
-				closestTarget = otherPlayer.Character
-				shortestDistance = distance
+	if autoAim then
+		local target = findClosestEnemy(player, origin)
+		if target then
+			local predicted = predictTargetPosition(target, origin)
+			if predicted then
+				direction = (predicted - origin).Unit
 			end
 		end
 	end
 
-	return closestTarget
-end
-
--- Fired when player shoots
-game.ReplicatedStorage.LaunchProjectile.OnServerEvent:Connect(function(player, origin, firePoint)
-	local target = findClosestEnemy(player, origin)
-
-	local direction
-	if target then
-		local predictedPos = predictTargetPosition(target, origin, projectileSpeed)
-		direction = (predictedPos - origin).Unit
-	else
+	-- Default fallback
+	if not direction then
 		direction = (firePoint - origin).Unit
 	end
 
 	-- Create the projectile
-	local projectile = Instance.new("Part")
-	projectile.Size = Vector3.new(0.5, 0.5, 0.5)
-	projectile.Shape = Enum.PartType.Ball
-	projectile.Color = Color3.new(1, 0, 0)
-	projectile.Anchored = false
-	projectile.CanCollide = false
-	projectile.CFrame = CFrame.new(origin)
-	projectile.Velocity = direction * projectileSpeed
-	projectile.Parent = workspace
+	local proj = Instance.new("Part")
+	proj.Shape = Enum.PartType.Ball
+	proj.Size = Vector3.new(0.5, 0.5, 0.5)
+	proj.Color = Color3.new(1, 0, 0)
+	proj.Anchored = false
+	proj.CanCollide = false
+	proj.Position = origin
+	proj.Velocity = direction * projectileSpeed
+	proj.Parent = workspace
 
-	-- Clean up
-	game.Debris:AddItem(projectile, 5)
+	Debris:AddItem(proj, 5)
 end)
