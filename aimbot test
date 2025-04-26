@@ -1,0 +1,68 @@
+-- AutoAimProjectileScript (ServerScript)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+-- Adjust these as needed
+local projectileSpeed = 100  -- studs per second
+local maxRange = 150         -- max aim distance
+
+-- Predict where the target will be when the projectile gets there
+local function predictTargetPosition(target, projectileStartPos, speed)
+	if not target:FindFirstChild("HumanoidRootPart") then return nil end
+	
+	local targetPos = target.HumanoidRootPart.Position
+	local targetVel = target.HumanoidRootPart.Velocity
+	
+	local distance = (targetPos - projectileStartPos).Magnitude
+	local travelTime = distance / speed
+
+	return targetPos + targetVel * travelTime
+end
+
+-- Find the closest enemy to aim at
+local function findClosestEnemy(player, origin)
+	local closestTarget = nil
+	local shortestDistance = maxRange
+
+	for _, otherPlayer in pairs(Players:GetPlayers()) do
+		if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+			local targetPos = otherPlayer.Character.HumanoidRootPart.Position
+			local distance = (targetPos - origin).Magnitude
+
+			if distance < shortestDistance then
+				closestTarget = otherPlayer.Character
+				shortestDistance = distance
+			end
+		end
+	end
+
+	return closestTarget
+end
+
+-- Fired when player shoots
+game.ReplicatedStorage.LaunchProjectile.OnServerEvent:Connect(function(player, origin, firePoint)
+	local target = findClosestEnemy(player, origin)
+
+	local direction
+	if target then
+		local predictedPos = predictTargetPosition(target, origin, projectileSpeed)
+		direction = (predictedPos - origin).Unit
+	else
+		direction = (firePoint - origin).Unit
+	end
+
+	-- Create the projectile
+	local projectile = Instance.new("Part")
+	projectile.Size = Vector3.new(0.5, 0.5, 0.5)
+	projectile.Shape = Enum.PartType.Ball
+	projectile.Color = Color3.new(1, 0, 0)
+	projectile.Anchored = false
+	projectile.CanCollide = false
+	projectile.CFrame = CFrame.new(origin)
+	projectile.Velocity = direction * projectileSpeed
+	projectile.Parent = workspace
+
+	-- Clean up
+	game.Debris:AddItem(projectile, 5)
+end)
