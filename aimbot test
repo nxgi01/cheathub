@@ -40,7 +40,6 @@ Environment.Settings = {
 }
 
 --// Creating Menu (GUI)
-
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = LocalPlayer.PlayerGui
 ScreenGui.Name = "AimbotMenu"
@@ -138,8 +137,19 @@ ExitButton.MouseButton1Click:Connect(function()
     Environment.Functions:Exit()
 end)
 
--- Functions for the script
+--// Preventing Multiple Processes
+pcall(function()
+    getgenv().Aimbot.Functions:Exit()
+end)
+
+--// Environment
+getgenv().Aimbot = {}
+local Environment = getgenv().Aimbot
+
+-- Rest of your script logic continues...
+
 function Environment.Functions:Exit()
     ScreenGui:Destroy()
     -- Add any other exit functionality here, such as saving settings, etc.
 end
+
